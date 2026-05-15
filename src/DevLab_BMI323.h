@@ -1,0 +1,104 @@
+/*
+  DevLab_BMI323.h
+
+  Arduino library for Bosch BMI323 IMU
+  using direct I2C register communication.
+
+  Features:
+  - Accelerometer reading
+  - Gyroscope reading
+  - Temperature reading
+  - Direct 16-bit register communication
+  - Compatible with ESP32, RP2040, and Arduino platforms
+
+  Author:
+  Adrian Rabadan Ortiz
+
+  Organization:
+  UNIT Electronics - DevLab Ecosystem
+
+  License:
+  MIT License
+*/
+
+#ifndef DEVLAB_BMI323_H
+#define DEVLAB_BMI323_H
+
+#include <Arduino.h>
+#include <Wire.h>
+
+class DevLab_BMI323 {
+
+public:
+
+  /*
+    Structure containing all BMI323 sensor data
+  */
+  struct SensorData {
+    int16_t accX;
+    int16_t accY;
+    int16_t accZ;
+
+    int16_t gyrX;
+    int16_t gyrY;
+    int16_t gyrZ;
+
+    int16_t tempRaw;
+    float temperatureC;
+  };
+
+  /*
+    Constructor
+
+    @param wire    I2C interface instance
+    @param address I2C device address
+  */
+  DevLab_BMI323(TwoWire &wire = Wire, uint8_t address = 0x69);
+
+  /*
+    Initialize BMI323 sensor
+
+    @param sdaPin  SDA pin
+    @param sclPin  SCL pin
+    @param clock   I2C clock frequency
+
+    @return true if initialization succeeds
+  */
+  bool begin(uint8_t sdaPin, uint8_t sclPin, uint32_t clock = 400000);
+
+  /*
+    Configure accelerometer and gyroscope
+  */
+  bool configure();
+
+  /*
+    Read accelerometer, gyroscope and temperature data
+
+    @param data Structure containing sensor values
+
+    @return true if read succeeds
+  */
+  bool readData(SensorData &data);
+
+  /*
+    Perform BMI323 soft reset
+  */
+  void softReset();
+
+private:
+
+  TwoWire *_wire;
+  uint8_t _address;
+
+  /*
+    Write 16-bit value to register
+  */
+  void writeRegister16(uint8_t reg, uint16_t value);
+
+  /*
+    Read 16-bit value from register
+  */
+  uint16_t readRegister16(uint8_t reg);
+};
+
+#endif
