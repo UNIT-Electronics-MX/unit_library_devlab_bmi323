@@ -12,7 +12,7 @@
   - Compatible with ESP32, RP2040, and Arduino platforms
 
   Author:
-  Adrian Rabadan Ortiz
+  Adrian Rabadan Ortiz | Jonathan Mejorado
 
   Organization:
   UNIT Electronics - DevLab Ecosystem
