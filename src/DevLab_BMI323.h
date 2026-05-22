@@ -47,6 +47,23 @@ public:
     float temperatureC;
   };
 
+  struct acc_cfg {
+    uint8_t acc_odr;
+    uint8_t acc_range;
+    uint8_t acc_bw;
+    uint8_t acc_avgnum;
+    uint8_t acc_mode;
+  };
+
+  struct gyr_cfg {
+    uint8_t gyr_odr;
+    uint8_t gyr_range;
+    uint8_t gyr_bw;
+    uint8_t gyr_avgnum;
+    uint8_t gyr_mode;
+  };
+
+
   /*
     Constructor
 
@@ -71,6 +88,12 @@ public:
   */
   bool configure();
 
+  void configureAccGyr(acc_cfg acc_Cfg, gyr_cfg gyr_Cfg);
+
+  void configAccBMI323(acc_cfg acc_Cfg);
+
+  void configGyrBMI323(gyr_cfg gyr_Cfg);
+
   /*
     Read accelerometer, gyroscope and temperature data
 
@@ -85,6 +108,38 @@ public:
   */
   void softReset();
 
+  void test_chip_id(int BMI323_CHIP_ID, int REG_CHIP_ID);
+  
+protected:
+
+    // ── Variables globales del checklist ──────────────────────
+  struct ValidationResult {
+    bool chip_detected   = false;
+    bool no_fatal_error  = false;
+    bool por_ok          = false;
+    bool acc_configured  = false;
+    bool gyr_configured  = false;
+    bool acc_x_ok        = false;
+    bool acc_y_ok        = false;
+    bool acc_z_ok        = false;
+    bool gyr_x_ok        = false;
+    bool gyr_y_ok        = false;
+    bool gyr_z_ok        = false;
+    bool temp_ok         = false;
+    bool stability_ok    = false;
+  };
+
+  //Declaraciones de validacion 
+  ValidationResult vr;
+
+
+  void print_separator();
+
+  void print_pass(const char* test);
+
+  void print_fail(const char* test);
+
+  void print_warn(const char* test);
 private:
 
   TwoWire *_wire;

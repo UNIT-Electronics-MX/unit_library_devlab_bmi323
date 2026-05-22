@@ -28,6 +28,9 @@
 
 #define SOFT_RESET_CMD 0xDEAF
 
+
+
+
 // --------------------------------------------------
 // Constructor
 // --------------------------------------------------
@@ -81,6 +84,38 @@ bool DevLab_BMI323::configure() {
 
   return true;
 }
+
+void DevLab_BMI323::configureAccGyr(acc_cfg acc_Cfg, gyr_cfg gyr_Cfg){
+  configAccBMI323(acc_Cfg);
+  configGyrBMI323(gyr_Cfg);
+
+  
+}
+void DevLab_BMI323::configAccBMI323(acc_cfg acc_Cfg){
+  uint16_t configReg = ((uint16_t)acc_Cfg.acc_odr    << 0)  | 
+                       ((uint16_t)acc_Cfg.acc_range  << 4)  | 
+                       ((uint16_t)acc_Cfg.acc_bw     << 7)  | 
+                       ((uint16_t)acc_Cfg.acc_avgnum << 8)  | 
+                       ((uint16_t)acc_Cfg.acc_mode   << 12);
+  writeRegister16(REG_ACC_CONF, configReg);
+  //Verificar que el registro se haya escrito correctamente
+  //Serial.print("Registro ACC_CONF armado: 0x");
+  //Serial.println(configReg, HEX);
+}
+
+
+void DevLab_BMI323::configGyrBMI323(gyr_cfg gyr_Cfg){
+  uint16_t configReg = ((uint16_t)gyr_Cfg.gyr_odr    << 0)  | 
+                       ((uint16_t)gyr_Cfg.gyr_range  << 4)  | 
+                       ((uint16_t)gyr_Cfg.gyr_bw     << 7)  | 
+                       ((uint16_t)gyr_Cfg.gyr_avgnum << 8)  | 
+                       ((uint16_t)gyr_Cfg.gyr_mode   << 12);
+  writeRegister16(REG_GYR_CONF, configReg);
+  //Verificar que el registro se haya escrito correctamente
+  Serial.print("Registro GYR_CONF armado: 0x");
+  Serial.println(configReg, HEX);
+}
+
 
 // --------------------------------------------------
 // Perform BMI323 soft reset
@@ -154,7 +189,7 @@ void DevLab_BMI323::writeRegister16(uint8_t reg, uint16_t value) {
 uint16_t DevLab_BMI323::readRegister16(uint8_t reg) {
   _wire->beginTransmission(_address);
   _wire->write(reg);
-  _wire->endTransmission(false);
+  _wire->endTransmission(false);// ── Variables globales del checklist ──────────────────────
 
   // 2 dummy bytes + 2 data bytes
   _wire->requestFrom(_address, (uint8_t)4);
@@ -170,4 +205,54 @@ uint16_t DevLab_BMI323::readRegister16(uint8_t reg) {
   uint8_t msb = _wire->read();
 
   return ((uint16_t)msb << 8) | lsb;
+}
+
+// ── TEST 1: Detección del dispositivo y Chip ID ────────────
+void DevLab_BMI323::test_chip_id(int BMI323_CHIP_ID, int REG_CHIP_ID) {
+  Serial.println(F("\n[TEST 1] Deteccion del dispositivo (CHIP_ID)"));
+  print_separator();
+
+  uint16_t chip_id_raw = readRegister16(REG_CHIP_ID);
+  uint8_t  chip_id     = (uint8_t)(chip_id_raw & 0xFF);  // solo bits [7:0] son validos
+
+  Serial.print(F("  Registro 0x00 (raw 16b): 0x"));
+  Serial.println(chip_id_raw, HEX);
+  Serial.print(F("  CHIP_ID [7:0]: 0x"));
+  Serial.print(chip_id, HEX);
+  Serial.print(F("  (esperado: 0x"));
+  Serial.print(BMI323_CHIP_ID, HEX);
+  Serial.println(F(")"));
+
+  if (chip_id == BMI323_CHIP_ID) {
+    vr.chip_detected = true;
+    print_pass("CHIP_ID correcto");
+  } else {
+    print_fail("CHIP_ID incorrecto — verificar conexiones y nivel logico");
+  }
+}
+
+
+
+
+
+
+
+// ───────────────────────────────────────────────────────────
+//  FUNCIONES DE VALIDACIÓN
+// ───────────────────────────────────────────────────────────
+
+void DevLab_BMI323::print_separator() {
+  Serial.println(F("--------------------------------------------------"));
+}
+
+void DevLab_BMI323::print_pass(const char* test) {
+  Serial.print(F("  [PASS] ")); Serial.println(test);
+}
+
+void DevLab_BMI323::print_fail(const char* test) {
+  Serial.print(F("  [FAIL] ")); Serial.println(test);
+}
+
+void DevLab_BMI323::print_warn(const char* test) {
+  Serial.print(F("  [WARN] ")); Serial.println(test);
 }
