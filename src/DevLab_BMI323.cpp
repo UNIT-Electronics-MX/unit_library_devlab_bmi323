@@ -21,13 +21,28 @@
 // --------------------------------------------------
 // BMI323 register definitions
 // --------------------------------------------------
-#define REG_ACC_X     0x03
-#define REG_ACC_CONF  0x20
-#define REG_GYR_CONF  0x21
-#define REG_CMD       0x7E
+
+#define REG_ACC_X         0x03
+#define REG_ACC_DATA_Y    0x04
+#define REG_ACC_DATA_Z    0x05
+#define REG_GYR_DATA_X    0x06
+#define REG_GYR_DATA_Y    0x07
+#define REG_GYR_DATA_Z    0x08
+#define REG_TEMP_DATA     0x09
+#define REG_GYR_CONF      0x21
+#define REG_CMD           0x7E
+#define REG_ACC_CONF      0x20
+
+//Interrupts defines 
+#define REG_INT_CTRL      0x38
+#define REG_INT_CONF      0x39
+#define REG_INT_STATUS1   0x0D
+#define REG_INT_STATUS2   0x0E
+#define REG_INT1_MAP      0x3A
+#define REG_INT2_MAP      0x3B
+
 
 #define SOFT_RESET_CMD 0xDEAF
-
 
 
 
@@ -91,7 +106,7 @@ void DevLab_BMI323::configureAccGyr(acc_cfg acc_Cfg, gyr_cfg gyr_Cfg){
 
   
 }
-void DevLab_BMI323::configAccBMI323(acc_cfg acc_Cfg){
+uint16_t DevLab_BMI323::configAccBMI323(acc_cfg acc_Cfg){
   uint16_t configReg = ((uint16_t)acc_Cfg.acc_odr    << 0)  | 
                        ((uint16_t)acc_Cfg.acc_range  << 4)  | 
                        ((uint16_t)acc_Cfg.acc_bw     << 7)  | 
@@ -101,19 +116,20 @@ void DevLab_BMI323::configAccBMI323(acc_cfg acc_Cfg){
   //Verificar que el registro se haya escrito correctamente
   //Serial.print("Registro ACC_CONF armado: 0x");
   //Serial.println(configReg, HEX);
+  delay(10);
+  return configReg;
 }
 
 
-void DevLab_BMI323::configGyrBMI323(gyr_cfg gyr_Cfg){
+uint16_t DevLab_BMI323::configGyrBMI323(gyr_cfg gyr_Cfg){
   uint16_t configReg = ((uint16_t)gyr_Cfg.gyr_odr    << 0)  | 
-                       ((uint16_t)gyr_Cfg.gyr_range  << 4)  | 
-                       ((uint16_t)gyr_Cfg.gyr_bw     << 7)  | 
                        ((uint16_t)gyr_Cfg.gyr_avgnum << 8)  | 
                        ((uint16_t)gyr_Cfg.gyr_mode   << 12);
   writeRegister16(REG_GYR_CONF, configReg);
   //Verificar que el registro se haya escrito correctamente
-  Serial.print("Registro GYR_CONF armado: 0x");
-  Serial.println(configReg, HEX);
+  //Serial.print("Registro GYR_CONF armado: 0x");
+  //Serial.println(configReg, HEX);
+  return configReg;
 }
 
 
@@ -233,7 +249,46 @@ void DevLab_BMI323::test_chip_id(int BMI323_CHIP_ID, int REG_CHIP_ID) {
 
 
 
+/*************** INTERRUPT FUNCTIONS*******************/
 
+void DevLab_BMI323::configINT(int_ctrl int_ctrlInt) {
+
+  uint16_t intConf =   ((uint16_t)int_ctrlInt.int1_level    << 0)  | 
+                       ((uint16_t)int_ctrlInt.int1_od       << 1)  | 
+                       ((uint16_t)int_ctrlInt.int1_en       << 2)  | 
+                       ((uint16_t)int_ctrlInt.int2_level    << 8)  | 
+                       ((uint16_t)int_ctrlInt.int2_od       << 9)  |
+                       ((uint16_t)int_ctrlInt.int2_en       << 10)  ;
+  Serial.print("IO_INT_CTRL escribiendo: 0x");
+  Serial.println(intConf, HEX);   // debe imprimir 0x505
+  writeRegister16(REG_INT_CTRL, intConf);
+}
+
+void DevLab_BMI323::configIntLatch(uint8_t latch){
+  writeRegister16(REG_INT_CONF, (uint16_t)(latch & 0x01));
+}
+
+void DevLab_BMI323::setINTMap1(BMI323_INT1_SRC src,BMI323_INT_DEST trgt) {
+  _int1MapShadow &= ~((uint16_t)0x3 << src);    // limpiar campo de 2 bits
+  _int1MapShadow |=  ((uint16_t)trgt << src);   // escribir destino
+  writeRegister16(REG_INT1_MAP, _int1MapShadow);
+  delayMicroseconds(5);
+}
+void DevLab_BMI323::setINTMap2(BMI323_INT2_SRC src,BMI323_INT_DEST trgt) {
+  _int2MapShadow &= ~((uint16_t)0x3 << src);
+  _int2MapShadow |=  ((uint16_t)trgt << src);
+  writeRegister16(REG_INT2_MAP, _int2MapShadow);
+  delayMicroseconds(5);
+}
+
+void DevLab_BMI323::clearAllINTMap() {
+  _int1MapShadow = 0x0000;
+  _int2MapShadow = 0x0000;
+  writeRegister16(REG_INT1_MAP, 0x0000);
+  delayMicroseconds(5);
+  writeRegister16(REG_INT1_MAP, 0x0000);
+  delayMicroseconds(5);
+}
 
 
 

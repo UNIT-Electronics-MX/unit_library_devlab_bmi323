@@ -12,7 +12,7 @@
   - Compatible with ESP32, RP2040, and Arduino platforms
 
   Author:
-  Adrian Rabadan Ortiz | Jonathan Mejorado
+  Adrian Rabadan Ortiz
 
   Organization:
   UNIT Electronics - DevLab Ecosystem
@@ -24,8 +24,12 @@
 #ifndef DEVLAB_BMI323_H
 #define DEVLAB_BMI323_H
 
+
 #include <Arduino.h>
 #include <Wire.h>
+
+#define BMI323_ADDR 0x69
+
 
 class DevLab_BMI323 {
 
@@ -63,7 +67,49 @@ public:
     uint8_t gyr_mode;
   };
 
+  struct int_ctrl{
+    uint8_t int1_level;
+    uint8_t int1_od;
+    uint8_t int1_en;
+    uint8_t int2_level;
+    uint8_t int2_od;
+    uint8_t int2_en;
+  };
 
+  // ── Fuentes de interrupción ─────────────────────────────────────
+// Cada valor es una máscara de 1 bit en los registros INT1_MAP/INT2_MAP.
+// El bit position corresponde al layout del datasheet §6.1.17.
+// El usuario combina con OR si necesita múltiples fuentes en una llamada:
+//   imu.mapINT(BMI323_SRC_DRDY_ACC | BMI323_SRC_DRDY_GYR, BMI323_INT1);
+
+enum BMI323_INT1_SRC : uint8_t {
+  BMI323_SRC1_NO_MOTION_OUT     = 0,   
+  BMI323_SRC1_ANY_MOTION_OUT    = 2,   
+  BMI323_SRC1_FLAT_OUT          = 4,   
+  BMI323_SRC1_ORIENTATION_OUT   = 6,   
+  BMI323_SRC1_STEP_DETECTOR_OUT = 8,   
+  BMI323_SRC1_STEP_COUNTER_OUT  = 10,   
+  BMI323_SRC1_SIG_MOTION_OUT    = 12,   
+  BMI323_SRC1_TILT_OUT          = 14
+};
+
+enum BMI323_INT2_SRC : uint8_t {
+  BMI323_SRC2_TAP_OUT             = 0,   
+  BMI323_SRC2_I3C_OUT             = 2,   
+  BMI323_SRC2_ERR_STATUS          = 4,   
+  BMI323_SRC2_TEMP_DRDY_INT       = 6,   
+  BMI323_SRC2_GYR_DRDY_INT        = 8,   
+  BMI323_SRC2_ACC_DRDY_INT        = 10,  
+  BMI323_SRC2_FIFO_WATERMARK_INT  = 12,   
+  BMI323_SRC2_FIFO_FULL_INT       = 14 
+};
+// ── Destino del pin físico ──────────────────────────────────────
+enum BMI323_INT_DEST : uint8_t {
+  BMI323_NONE = 0x0,   // Interrupt Disabled
+  BMI323_INT1 = 0x1,   // solo pin INT1 (pin 4 del IC)
+  BMI323_INT2 = 0x2,   // solo pin INT2 (pin 9 del IC)
+  BMI323_IBI  = 0x3,   // I3C IBI
+};
   /*
     Constructor
 
@@ -90,9 +136,9 @@ public:
 
   void configureAccGyr(acc_cfg acc_Cfg, gyr_cfg gyr_Cfg);
 
-  void configAccBMI323(acc_cfg acc_Cfg);
+  uint16_t configAccBMI323(acc_cfg acc_Cfg);
 
-  void configGyrBMI323(gyr_cfg gyr_Cfg);
+  uint16_t configGyrBMI323(gyr_cfg gyr_Cfg);
 
   /*
     Read accelerometer, gyroscope and temperature data
@@ -110,6 +156,20 @@ public:
 
   void test_chip_id(int BMI323_CHIP_ID, int REG_CHIP_ID);
   
+
+  //INTERRUPTS FUNCTIONS
+  void configINT(int_ctrl intCfg);
+
+  void configIntLatch(uint8_t latch );          //0: pulso 1:latched
+
+  void setINTMap1(BMI323_INT1_SRC src,BMI323_INT_DEST trgt);
+
+  void setINTMap2(BMI323_INT2_SRC src,BMI323_INT_DEST trgt);
+
+  void clearAllINTMap();
+  const uint16_t readINTStatus1() {return _int1MapShadow;};
+
+  const uint16_t readINTStatus2() {return _int2MapShadow;};
 protected:
 
     // ── Variables globales del checklist ──────────────────────
@@ -145,6 +205,8 @@ private:
   TwoWire *_wire;
   uint8_t _address;
 
+  uint16_t _int1MapShadow = 0x0000;
+  uint16_t _int2MapShadow = 0x0000;
   /*
     Write 16-bit value to register
   */
