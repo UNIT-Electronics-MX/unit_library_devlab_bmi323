@@ -2,7 +2,7 @@
   DevLab_BMI323.h
 
   Arduino library for Bosch BMI323 IMU
-  using direct I2C register communication.
+  using direct I2C register communication
 
   Features:
   - Accelerometer reading
@@ -149,6 +149,14 @@ enum BMI323_INT_DEST : uint8_t {
   */
   bool readData(SensorData &data);
 
+
+  bool enableFeatEngine();
+
+  uint8_t readErrorStatus(); 
+
+  bool waitDrdyAcc(uint32_t timeoutMs);
+
+
   /*
     Perform BMI323 soft reset
   */
@@ -167,9 +175,25 @@ enum BMI323_INT_DEST : uint8_t {
   void setINTMap2(BMI323_INT2_SRC src,BMI323_INT_DEST trgt);
 
   void clearAllINTMap();
-  const uint16_t readINTStatus1() {return _int1MapShadow;};
 
-  const uint16_t readINTStatus2() {return _int2MapShadow;};
+  uint16_t readINTStatus1();
+
+  uint16_t readINTStatus2();
+
+  uint16_t getINT1Map() const { return _int1MapShadow; }
+
+  uint16_t getINT2Map() const { return _int2MapShadow; }
+
+
+
+    /*
+    Only for test delete after testing
+  **/
+
+  uint16_t testAddresses(uint8_t);
+
+  void configAnyMotion();
+
 protected:
 
     // ── Variables globales del checklist ──────────────────────
@@ -200,6 +224,12 @@ protected:
   void print_fail(const char* test);
 
   void print_warn(const char* test);
+
+
+
+  
+  
+  
 private:
 
   TwoWire *_wire;
@@ -216,6 +246,11 @@ private:
     Read 16-bit value from register
   */
   uint16_t readRegister16(uint8_t reg);
+
+
+
+
+
 };
 
 #endif

@@ -7,7 +7,7 @@
   16-bit I2C register access.
 
   Author:
-  Adrian Rabadan Ortiz
+  Adrian Rabadan Ortiz | Jonathan Mejorado 
 
   Organization:
   UNIT Electronics - DevLab Ecosystem
@@ -21,7 +21,8 @@
 // --------------------------------------------------
 // BMI323 register definitions
 // --------------------------------------------------
-
+#define REG_ERR_REG       0x01
+#define REG_STATUS        0x02
 #define REG_ACC_X         0x03
 #define REG_ACC_DATA_Y    0x04
 #define REG_ACC_DATA_Z    0x05
@@ -29,13 +30,21 @@
 #define REG_GYR_DATA_Y    0x07
 #define REG_GYR_DATA_Z    0x08
 #define REG_TEMP_DATA     0x09
+#define REG_FEATURE_IO0        0x10
+#define REG_FEATURE_IO1        0x11
+#define REG_FEATURE_IO2        0x12
+#define REG_FEATURE_IO_STATUS  0x14
 #define REG_GYR_CONF      0x21
 #define REG_CMD           0x7E
 #define REG_ACC_CONF      0x20
 
+
+
+
 //Interrupts defines 
 #define REG_INT_CTRL      0x38
 #define REG_INT_CONF      0x39
+#define REG_FEATURE_CTRL       0x40
 #define REG_INT_STATUS1   0x0D
 #define REG_INT_STATUS2   0x0E
 #define REG_INT1_MAP      0x3A
@@ -122,13 +131,13 @@ uint16_t DevLab_BMI323::configAccBMI323(acc_cfg acc_Cfg){
 
 
 uint16_t DevLab_BMI323::configGyrBMI323(gyr_cfg gyr_Cfg){
-  uint16_t configReg = ((uint16_t)gyr_Cfg.gyr_odr    << 0)  | 
+  uint16_t configReg = ((uint16_t)gyr_Cfg.gyr_odr    << 0)  |
+                       ((uint16_t)gyr_Cfg.gyr_range  << 4)  | 
+                       ((uint16_t)gyr_Cfg.gyr_bw     << 7)  |   
                        ((uint16_t)gyr_Cfg.gyr_avgnum << 8)  | 
                        ((uint16_t)gyr_Cfg.gyr_mode   << 12);
   writeRegister16(REG_GYR_CONF, configReg);
-  //Verificar que el registro se haya escrito correctamente
-  //Serial.print("Registro GYR_CONF armado: 0x");
-  //Serial.println(configReg, HEX);
+
   return configReg;
 }
 
@@ -139,6 +148,8 @@ uint16_t DevLab_BMI323::configGyrBMI323(gyr_cfg gyr_Cfg){
 void DevLab_BMI323::softReset() {
   writeRegister16(REG_CMD, SOFT_RESET_CMD);
   delay(50);
+  _int1MapShadow = 0x0000;
+  _int2MapShadow = 0x0000;
 }
 
 // --------------------------------------------------
@@ -247,7 +258,39 @@ void DevLab_BMI323::test_chip_id(int BMI323_CHIP_ID, int REG_CHIP_ID) {
   }
 }
 
+bool DevLab_BMI323::enableFeatEngine(){
 
+  softReset();
+
+  writeRegister16(REG_FEATURE_IO2, 0x12C);
+
+  writeRegister16(REG_FEATURE_IO_STATUS,0x0001);
+
+  writeRegister16(REG_FEATURE_CTRL, 0x0001);
+
+    uint32_t t0 = millis();
+  while (millis() - t0 < 100) {
+    uint16_t io1 = readRegister16(REG_FEATURE_IO1);
+    if (io1 & 0x0001) return true;   // error_status = 1 = engine listo
+    delay(2);
+  }
+  return false;  // timeout — engine no respondió
+}
+
+uint8_t DevLab_BMI323::readErrorStatus()
+{
+    return (uint8_t)(readRegister16(REG_ERR_REG) & 0xFF);
+}
+
+bool DevLab_BMI323::waitDrdyAcc(uint32_t timeoutMs) {
+  const uint32_t startTime = millis();
+  while (millis() - startTime < timeoutMs) {
+    if (readRegister16(REG_STATUS) & (1 << 7)) return true;
+    delay(1);
+  }
+  return false;
+  
+}
 
 /*************** INTERRUPT FUNCTIONS*******************/
 
@@ -286,11 +329,17 @@ void DevLab_BMI323::clearAllINTMap() {
   _int2MapShadow = 0x0000;
   writeRegister16(REG_INT1_MAP, 0x0000);
   delayMicroseconds(5);
-  writeRegister16(REG_INT1_MAP, 0x0000);
+  writeRegister16(REG_INT2_MAP, 0x0000);
   delayMicroseconds(5);
 }
 
+uint16_t DevLab_BMI323::readINTStatus1() {
+  return readRegister16(REG_INT_STATUS1);
+}
 
+uint16_t DevLab_BMI323::readINTStatus2() {
+  return readRegister16(REG_INT_STATUS2);
+}
 
 // ───────────────────────────────────────────────────────────
 //  FUNCIONES DE VALIDACIÓN
@@ -310,4 +359,26 @@ void DevLab_BMI323::print_fail(const char* test) {
 
 void DevLab_BMI323::print_warn(const char* test) {
   Serial.print(F("  [WARN] ")); Serial.println(test);
+}
+
+uint16_t DevLab_BMI323::testAddresses(uint8_t reg){
+  uint16_t featStatus = readRegister16(reg); // FEAT_ENG_STATUS
+  Serial.print(F("FEAT_ENG_STATUS (0x14): 0x"));
+  Serial.println(featStatus, HEX);
+
+  return featStatus;
+
+}
+
+
+void DevLab_BMI323::configAnyMotion(){
+
+   uint16_t io0 = readRegister16(REG_FEATURE_IO0);
+  io0 |= (1 << 3) | (1 << 4) | (1 << 5);   // habilitar x, y, z
+  writeRegister16(REG_FEATURE_IO0, io0);
+  delayMicroseconds(5);
+
+  // Activar la configuración en el feature engine
+  writeRegister16(REG_FEATURE_IO_STATUS, 0x0001);
+  delay(5);
 }
