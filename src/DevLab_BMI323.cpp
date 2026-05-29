@@ -4,7 +4,7 @@
   Implementation file for the DevLab_BMI323 Arduino library.
 
   This library communicates with the Bosch BMI323 IMU using direct
-  16-bit I2C register access.
+  16-bit register access.
 
   Author:
   Adrian Rabadan Ortiz | Jonathan Mejorado 

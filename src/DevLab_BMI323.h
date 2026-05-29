@@ -2,7 +2,7 @@
   DevLab_BMI323.h
 
   Arduino library for Bosch BMI323 IMU
-  using direct I2C register communication
+  using direct register communication
 
   Features:
   - Accelerometer reading
@@ -34,7 +34,7 @@
     
   // ── Fuentes de interrupción ─────────────────────────────────────
 // Cada valor es una máscara de 1 bit en los registros INT1_MAP/INT2_MAP.
-// El bit position corresponde al layout del datasheet §6.1.17.
+// El bit position corresponde al layout del datasheet 6.1.17.
 // El usuario combina con OR si necesita múltiples fuentes en una llamada:
 //   imu.mapINT(BMI323_SRC_DRDY_ACC | BMI323_SRC_DRDY_GYR, BMI323_INT1);
 
@@ -67,7 +67,6 @@ enum BMI323_INT_DEST : uint8_t {
   BMI323_IBI  = 0x3,   // I3C IBI
 };
 
-// En DevLab_BMI323.h — antes de la clase, junto a los enums de interrupción
 
 enum BMI323_ACC_ODR : uint8_t {
   BMI323_ACC_ODR_0_78HZ  = 0x1,
@@ -307,7 +306,7 @@ public:
 
     /*
     Only for test delete after testing
-  **/
+    **/
 
   uint16_t testAddresses(uint8_t);
 
@@ -380,7 +379,6 @@ private:
 
 
 };
-
 
 using BMI323_AccCfg          = DevLab_BMI323::acc_cfg;
 using BMI323_GyrCfg          = DevLab_BMI323::gyr_cfg;
