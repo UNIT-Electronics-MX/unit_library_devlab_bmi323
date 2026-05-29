@@ -1,9 +1,37 @@
-/** @file BMI323_interrupts.ino 
-*
-*
-* @author Jonathan Mejorado Lopez
-*
-* @bug No known bugs.
+/*
+  DevLab_BMI323 - Basic Read Example
+
+  Description:
+  This example demonstrates how to initialize and read
+  accelerometer, gyroscope, and temperature data from
+  the Bosch BMI323 IMU using the DevLab_BMI323 library.
+
+  Supported Platforms:
+  - ESP32
+  - RP2040
+  - Arduino-compatible boards with Wire support
+
+  Connections:
+  BMI323 -> MCU
+
+  SDA   -> GPIO 6
+  SCL   -> GPIO 7
+  VDD   -> 3.3V
+  VDDIO -> 3.3V
+  GND   -> GND
+  CSB   -> 3.3V
+  SDO   -> 3.3V (I2C address 0x69)
+  INT1  -> D7
+  INT2  -> D5
+
+  Author:
+  Jonathan Mejorado Lopez
+
+  Organization:
+  UNIT Electronics - DevLab Ecosystem
+
+  License:
+  MIT License
 */
 #include <Wire.h>
 #include "DevLab_BMI323.h"
@@ -14,8 +42,8 @@
 #define FAST_SPEED  400000
 
 // FIX: D5 y D7 
-#define INT1_PIN  D7   // D5 → ANY_MOTION
-#define INT2_PIN  D5   // D7 → ACC_DRDY
+#define INT1_PIN  D7   
+#define INT2_PIN  D5   
 
 // ── Variables compartidas con las ISR ─────────────────────────
 volatile uint32_t int1Count = 0;

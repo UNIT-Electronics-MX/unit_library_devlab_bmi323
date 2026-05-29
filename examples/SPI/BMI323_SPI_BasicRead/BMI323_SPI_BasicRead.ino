@@ -1,9 +1,36 @@
-/** @file BMI323_SPI_BasicRead.ino 
-*
-*
-* @author Jonathan Mejorado Lopez
-*
-* @bug No known bugs.
+/*
+DevLab_BMI323 - SPI Basic Read Example
+
+  Description:
+  This example demonstrates how to initialize and read
+  accelerometer, gyroscope, and temperature data from
+  the Bosch BMI323 IMU using SPI 4 Wire conecction
+  on the DevLab_BMI323 library.
+
+  Supported Platforms:
+  - ESP32
+  - RP2040
+  - Arduino-compatible boards with Wire support
+
+  Connections:
+  BMI323 -> MCU
+
+  SDA   -> D11
+  SCK   -> D13
+  VDD   -> 3.3V
+  VDDIO -> 3.3V
+  GND   -> GND
+  CSB   -> D1O
+  SA0   -> D12
+
+  Author:
+  Jonathan Mejorado Lopez
+
+  Organization:
+  UNIT Electronics - DevLab Ecosystem
+
+  License:
+  MIT License
 */
 
 #include <SPI.h>

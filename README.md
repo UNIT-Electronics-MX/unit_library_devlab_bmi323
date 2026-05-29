@@ -49,10 +49,6 @@ Sketch -> Library Manager -> Search DevLab_BMI323...
 
 3. Click on Install
 
-```text
-DevLab_BMI323.zip
-```
-
 4. Compile and upload the examples for the sensor
 
 ---
@@ -173,7 +169,7 @@ DevLab_BMI323/
 |---|---|
 | Library Name | DevLab_BMI323 |
 | Version | 1.0.0 |
-| Communication | I2C |
+| Communication | I2C/SPI|
 | Architecture | Cross-platform |
 
 ---

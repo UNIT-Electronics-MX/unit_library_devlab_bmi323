@@ -1,9 +1,36 @@
-/** @file BMI323_AdvancedRead.ino 
-*
-*
-* @author Jonathan Mejorado Lopez
-*
-* @bug No known bugs.
+/** 
+    DevLab_BMI323 - Advanced Read Example
+
+  Description:
+  This example sweep measurements for accelerometer,
+  gyroscope, and temperature data,between all the
+  available configs from the Bosch BMI323 IMU using 
+  the DevLab_BMI323 library.
+
+  Supported Platforms:
+  - ESP32
+  - RP2040
+  - Arduino-compatible boards with Wire support
+
+  Connections:
+  BMI323 -> MCU
+
+  SDA   -> GPIO 6
+  SCL   -> GPIO 7
+  VDD   -> 3.3V
+  VDDIO -> 3.3V
+  GND   -> GND
+  CSB   -> 3.3V
+  SDO   -> 3.3V (I2C address 0x69)
+
+  Author:
+  Jonathan Mejorado Lopez
+
+  Organization:
+  UNIT Electronics - DevLab Ecosystem
+
+  License:
+  MIT License
 */
 
 #include <Wire.h>
