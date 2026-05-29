@@ -12,7 +12,7 @@
   - Compatible with ESP32, RP2040, and Arduino platforms
 
   Author:
-  Adrian Rabadan Ortiz
+  Adrian Rabadan Ortiz Jonathan Mejorado
 
   Organization:
   UNIT Electronics - DevLab Ecosystem
@@ -27,10 +27,11 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <SPI.h>
 
-#define BMI323_ADDR 0x69
-
-
+#define BMI323_CHIP_ID 0x43
+#define REG_CHIP_ID 0x00
+    
 class DevLab_BMI323 {
 
 public:
@@ -111,12 +112,21 @@ enum BMI323_INT_DEST : uint8_t {
   BMI323_IBI  = 0x3,   // I3C IBI
 };
   /*
-    Constructor
+    Constructor I2C
 
     @param wire    I2C interface instance
     @param address I2C device address
   */
   DevLab_BMI323(TwoWire &wire = Wire, uint8_t address = 0x69);
+
+  /*
+    Constructor SPI
+
+    @param spi    SPI interface instance
+    @param csPin  Chip select pin
+    @param speed  SPI clock frequency
+  */
+  DevLab_BMI323(SPIClass &spi, uint8_t csPin, uint8_t misoPin, uint8_t mosiPin, uint8_t sckPin, uint32_t speed = 4000000);
 
   /*
     Initialize BMI323 sensor
@@ -128,6 +138,14 @@ enum BMI323_INT_DEST : uint8_t {
     @return true if initialization succeeds
   */
   bool begin(uint8_t sdaPin, uint8_t sclPin, uint32_t clock = 400000);
+
+
+  /*
+    Initialize BMI323 sensor with SPI
+
+    @return true if initialization succeeds
+  */
+  bool begin();
 
   /*
     Configure accelerometer and gyroscope
@@ -162,7 +180,7 @@ enum BMI323_INT_DEST : uint8_t {
   */
   void softReset();
 
-  void test_chip_id(int BMI323_CHIP_ID, int REG_CHIP_ID);
+  void test_chip_id(int expectedID, int regID);
   
 
   //INTERRUPTS FUNCTIONS
@@ -235,6 +253,14 @@ private:
   TwoWire *_wire;
   uint8_t _address;
 
+  SPIClass *_spi = nullptr;
+  uint8_t _csPin = 0;
+  uint8_t _misoPin = 0;
+  uint8_t _mosiPin = 0;
+  uint8_t _sckPin = 0;
+  uint32_t _spiSpeed = 4000000U;
+
+  bool _useI2C = true;
   uint16_t _int1MapShadow = 0x0000;
   uint16_t _int2MapShadow = 0x0000;
   /*
@@ -247,7 +273,8 @@ private:
   */
   uint16_t readRegister16(uint8_t reg);
 
-
+  void spiActivateMode();
+  bool _spiAlive();
 
 
 

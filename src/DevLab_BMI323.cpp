@@ -53,6 +53,10 @@
 
 #define SOFT_RESET_CMD 0xDEAF
 
+#define SPI_READ_BIT  0x80
+#define SPI_FAST_SPEED 4000000
+
+
 
 
 // --------------------------------------------------
@@ -61,10 +65,22 @@
 DevLab_BMI323::DevLab_BMI323(TwoWire &wire, uint8_t address) {
   _wire = &wire;
   _address = address;
+  _useI2C = true;
 }
 
+DevLab_BMI323::DevLab_BMI323(SPIClass &spi, uint8_t csPin,uint8_t misoPin, uint8_t mosiPin, uint8_t sckPin, uint32_t speed) {
+  _spi = &spi;
+  _csPin = csPin;
+  _misoPin = misoPin;
+  _mosiPin = mosiPin;
+  _sckPin = sckPin;
+  _spiSpeed = speed;
+  _useI2C = false;
+}
+
+
 // --------------------------------------------------
-// Initialize I2C interface and configure BMI323
+// Initialize interfaces and configure BMI323
 // --------------------------------------------------
 bool DevLab_BMI323::begin(uint8_t sdaPin, uint8_t sclPin, uint32_t clock) {
   _wire->begin(sdaPin, sclPin);
@@ -78,6 +94,18 @@ bool DevLab_BMI323::begin(uint8_t sdaPin, uint8_t sclPin, uint32_t clock) {
   return configure();
 }
 
+bool DevLab_BMI323::begin() {
+  pinMode(_csPin, OUTPUT);
+  digitalWrite(_csPin, HIGH); // CS inactivo
+  _spi->begin(_sckPin, _misoPin, _mosiPin, _csPin);
+
+  delay(10);
+  spiActivateMode();
+
+  softReset();
+  configure();
+  return _spiAlive();
+}
 // --------------------------------------------------
 // Configure accelerometer and gyroscope
 // --------------------------------------------------
@@ -150,12 +178,21 @@ void DevLab_BMI323::softReset() {
   delay(50);
   _int1MapShadow = 0x0000;
   _int2MapShadow = 0x0000;
+  if(!_useI2C){
+    spiActivateMode();
+  }
+
 }
 
 // --------------------------------------------------
 // Read accelerometer, gyroscope and temperature data
 // --------------------------------------------------
 bool DevLab_BMI323::readData(SensorData &dataOut) {
+  uint8_t buffer[16];
+  uint8_t i = 0;
+  uint8_t offset = 0;  // Skip dummy bytes
+    
+  if(_useI2C){
   _wire->beginTransmission(_address);
   _wire->write(REG_ACC_X);
   _wire->endTransmission(false);
@@ -170,8 +207,7 @@ bool DevLab_BMI323::readData(SensorData &dataOut) {
   */
   _wire->requestFrom(_address, (uint8_t)16);
 
-  uint8_t buffer[16];
-  uint8_t i = 0;
+ 
 
   while (_wire->available() && i < 16) {
     buffer[i++] = _wire->read();
@@ -180,9 +216,30 @@ bool DevLab_BMI323::readData(SensorData &dataOut) {
   if (i < 16) {
     return false;
   }
+  offset = 2;  // Skip dummy bytes
+  
+  }
+  else{
 
-  const uint8_t offset = 2;  // Skip dummy bytes
 
+
+    _spi->beginTransaction(SPISettings(_spiSpeed, MSBFIRST, SPI_MODE0));
+    digitalWrite(_csPin, LOW);
+    _spi->transfer(REG_ACC_X | 0x80); // MSB=1 para lectura
+    _spi->transfer(0x00); // Enviar byte dummy para iniciar lectura
+    while(i < 14){
+
+      buffer[i++] = _spi->transfer(0x00); // Enviar byte dummy para recibir datos
+    }
+    if (i < 14) {
+    return false;
+    }
+    digitalWrite(_csPin, HIGH); // Terminar transacción
+    _spi->endTransaction();
+    delayMicroseconds(5);
+
+   
+  }
   dataOut.accX = (int16_t)(buffer[offset + 0]  | ((uint16_t)buffer[offset + 1]  << 8));
   dataOut.accY = (int16_t)(buffer[offset + 2]  | ((uint16_t)buffer[offset + 3]  << 8));
   dataOut.accZ = (int16_t)(buffer[offset + 4]  | ((uint16_t)buffer[offset + 5]  << 8));
@@ -203,43 +260,70 @@ bool DevLab_BMI323::readData(SensorData &dataOut) {
 // Write a 16-bit value to a BMI323 register
 // --------------------------------------------------
 void DevLab_BMI323::writeRegister16(uint8_t reg, uint16_t value) {
-  _wire->beginTransmission(_address);
-  _wire->write(reg);
-  _wire->write(value & 0xFF);         // LSB
-  _wire->write((value >> 8) & 0xFF);  // MSB
-  _wire->endTransmission();
+  if(_useI2C){
+      _wire->beginTransmission(_address);
+      _wire->write(reg);
+      _wire->write(value & 0xFF);         // LSB
+      _wire->write((value >> 8) & 0xFF);  // MSB
+      _wire->endTransmission();
+  }else{
+    _spi->beginTransaction(SPISettings(_spiSpeed, MSBFIRST, SPI_MODE0));
+    digitalWrite(_csPin, LOW);
+    _spi->transfer(reg & 0x7F);                   // MSB=0 para escritura
+    _spi->transfer(value & 0xFF);                 // LSB
+    _spi->transfer((value >> 8) & 0xFF);          // MSB
+    digitalWrite(_csPin, HIGH);                   // Terminar transacción
+    _spi->endTransaction();
+    delayMicroseconds(5);
+  }
 }
 
 // --------------------------------------------------
 // Read a 16-bit value from a BMI323 register
 // --------------------------------------------------
 uint16_t DevLab_BMI323::readRegister16(uint8_t reg) {
-  _wire->beginTransmission(_address);
-  _wire->write(reg);
-  _wire->endTransmission(false);// ── Variables globales del checklist ──────────────────────
+  if(_useI2C){
+    _wire->beginTransmission(_address);
+    _wire->write(reg);
+    _wire->endTransmission(false);// ── Variables globales del checklist ──────────────────────
 
-  // 2 dummy bytes + 2 data bytes
-  _wire->requestFrom(_address, (uint8_t)4);
+    // 2 dummy bytes + 2 data bytes
+    _wire->requestFrom(_address, (uint8_t)4);
 
-  if (_wire->available() < 4) {
-    return 0xFFFF;
+    if (_wire->available() < 4) {
+      return 0xFFFF;
+    }
+
+    _wire->read();  // Dummy byte 1
+    _wire->read();  // Dummy byte 2
+
+    uint8_t lsb = _wire->read();
+    uint8_t msb = _wire->read();
+
+    return ((uint16_t)msb << 8) | lsb;
   }
+  else{
+    _spi->beginTransaction(SPISettings(_spiSpeed, MSBFIRST, SPI_MODE0));
+    digitalWrite(_csPin, LOW);
+    _spi->transfer(reg | 0x80); // MSB=1 para lectura
+    _spi->transfer(0x00); // Enviar byte dummy para iniciar lectura
+    uint8_t lsb = _spi->transfer(0x00); // Enviar byte dummy para recibir LSB
+    uint8_t msb = _spi->transfer(0x00); // Enviar byte dummy para recibir MSB
+    digitalWrite(_csPin, HIGH); // Terminar transacción
+    _spi->endTransaction();
+    delayMicroseconds(5);
 
-  _wire->read();  // Dummy byte 1
-  _wire->read();  // Dummy byte 2
-
-  uint8_t lsb = _wire->read();
-  uint8_t msb = _wire->read();
-
-  return ((uint16_t)msb << 8) | lsb;
+    return ((uint16_t)msb << 8) | lsb;
+  }
 }
 
 // ── TEST 1: Detección del dispositivo y Chip ID ────────────
-void DevLab_BMI323::test_chip_id(int BMI323_CHIP_ID, int REG_CHIP_ID) {
+void DevLab_BMI323::test_chip_id(int expectedID, int regID) {
+  if(_useI2C){
   Serial.println(F("\n[TEST 1] Deteccion del dispositivo (CHIP_ID)"));
   print_separator();
 
-  uint16_t chip_id_raw = readRegister16(REG_CHIP_ID);
+  uint16_t chip_id_raw = readRegister16(regID);  // REG_CHIP_ID
   uint8_t  chip_id     = (uint8_t)(chip_id_raw & 0xFF);  // solo bits [7:0] son validos
 
   Serial.print(F("  Registro 0x00 (raw 16b): 0x"));
@@ -247,14 +331,37 @@ void DevLab_BMI323::test_chip_id(int BMI323_CHIP_ID, int REG_CHIP_ID) {
   Serial.print(F("  CHIP_ID [7:0]: 0x"));
   Serial.print(chip_id, HEX);
   Serial.print(F("  (esperado: 0x"));
-  Serial.print(BMI323_CHIP_ID, HEX);
+  Serial.print(expectedID, HEX);
   Serial.println(F(")"));
 
-  if (chip_id == BMI323_CHIP_ID) {
+  if (chip_id == expectedID) {
     vr.chip_detected = true;
     print_pass("CHIP_ID correcto");
   } else {
     print_fail("CHIP_ID incorrecto — verificar conexiones y nivel logico");
+  }
+
+  }
+  else{
+      Serial.println(F("\n[TEST SPI] Verificar comunicación SPI con BMI323"));
+  print_separator();
+
+  // Escribir un valor de prueba en un registro (ejemplo: REG_ACC_CONF)
+  uint16_t raw    = readRegister16(REG_CHIP_ID);
+  uint8_t  chipId = (uint8_t)(raw & 0xFF);
+
+  Serial.print(F("  raw 16b : 0x")); Serial.println(raw, HEX);
+  Serial.print(F("  CHIP_ID : 0x")); Serial.print(chipId, HEX);
+  Serial.print(F("  (esperado: 0x")); Serial.print(BMI323_CHIP_ID, HEX);
+
+  Serial.println(F(")"));
+  if      (chipId == BMI323_CHIP_ID) Serial.println(F("  [PASS] SPI OK"));
+  else if (chipId == 0xFF)           Serial.println(F("  [FAIL] MISO sin conexion"));
+  else if (chipId == 0x00)           Serial.println(F("  [FAIL] CS o alimentacion"));
+  else {
+    Serial.println(F("  [FAIL] CHIP_ID incorrecto"));
+    Serial.println(F("  [WARN] Probar SPI_MODE3 si MODE0 falla"));
+  }
   }
 }
 
@@ -302,8 +409,8 @@ void DevLab_BMI323::configINT(int_ctrl int_ctrlInt) {
                        ((uint16_t)int_ctrlInt.int2_level    << 8)  | 
                        ((uint16_t)int_ctrlInt.int2_od       << 9)  |
                        ((uint16_t)int_ctrlInt.int2_en       << 10)  ;
-  Serial.print("IO_INT_CTRL escribiendo: 0x");
-  Serial.println(intConf, HEX);   // debe imprimir 0x505
+  //Serial.print("IO_INT_CTRL escribiendo: 0x");
+  //Serial.println(intConf, HEX);   // debe imprimir 0x505
   writeRegister16(REG_INT_CTRL, intConf);
 }
 
@@ -381,4 +488,23 @@ void DevLab_BMI323::configAnyMotion(){
   // Activar la configuración en el feature engine
   writeRegister16(REG_FEATURE_IO_STATUS, 0x0001);
   delay(5);
+}
+
+/********************* SPI FUNCTIONS ********************************/
+
+void DevLab_BMI323::spiActivateMode(){
+  _spi->beginTransaction(SPISettings(_spiSpeed, MSBFIRST, SPI_MODE0));
+  digitalWrite(_csPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(_csPin,HIGH);
+  _spi->endTransaction();
+  delay(1);
+  readRegister16(REG_CHIP_ID);
+  delay(1);
+}
+
+bool DevLab_BMI323::_spiAlive() {
+  uint16_t raw = readRegister16(REG_CHIP_ID);
+  uint8_t chipId = (uint8_t)(raw & 0xFF);
+  return (chipId == BMI323_CHIP_ID);
 }
