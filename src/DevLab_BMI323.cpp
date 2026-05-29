@@ -216,8 +216,8 @@ bool DevLab_BMI323::readData(SensorData &dataOut) {
   if (i < 16) {
     return false;
   }
-  offset = 2;  // Skip dummy bytes
   
+    offset = 2;  // Skip dummy bytes
   }
   else{
 
@@ -240,6 +240,8 @@ bool DevLab_BMI323::readData(SensorData &dataOut) {
 
    
   }
+
+
   dataOut.accX = (int16_t)(buffer[offset + 0]  | ((uint16_t)buffer[offset + 1]  << 8));
   dataOut.accY = (int16_t)(buffer[offset + 2]  | ((uint16_t)buffer[offset + 3]  << 8));
   dataOut.accZ = (int16_t)(buffer[offset + 4]  | ((uint16_t)buffer[offset + 5]  << 8));

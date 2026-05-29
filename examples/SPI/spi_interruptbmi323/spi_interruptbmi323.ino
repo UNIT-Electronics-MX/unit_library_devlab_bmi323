@@ -1,67 +1,45 @@
-/** @file BMI323_interrupts.ino 
+/** @file spi_interruptbmi323.ino 
 *
 *
 * @author Jonathan Mejorado Lopez
 *
 * @bug No known bugs.
 */
-#include <Wire.h>
+
+#include <SPI.h>
 #include "DevLab_BMI323.h"
 
-// ------------- I2C Cfg
-#define SDA_PIN 6
-#define SCL_PIN 7
-#define FAST_SPEED  400000
 
-// FIX: D5 y D7 
-#define INT1_PIN  D7   // D5 → ANY_MOTION
-#define INT2_PIN  D5   // D7 → ACC_DRDY
 
+/// *************Setup SPI Config
+#define MOSI_PIN D11
+#define MISO_PIN D12
+#define SCK_PIN  D13
+#define CS_PIN   D10  
+
+#define INT1_PIN D6
+#define INT2_PIN D5
+
+#define SPI_FAST_SPEED 4000000
 // ── Variables compartidas con las ISR ─────────────────────────
 volatile uint32_t int1Count = 0;
 volatile bool     int2Flag  = false;
+SPIClass spi_bus(SPI);                    //Inicializacion de bus SPI
 
-// ----------- Registros principales ------------------------
-#define BMI323_ADDR 0x69
-
-#define REG_CHIP_ID       0x00
-#define REG_ERR_REG       0x01
-#define REG_STATUS        0x02
-#define REG_ACC_DATA_X    0x03
-#define REG_ACC_DATA_Y    0x04
-#define REG_ACC_DATA_Z    0x05
-#define REG_GYR_DATA_X    0x06
-#define REG_GYR_DATA_Y    0x07
-#define REG_GYR_DATA_Z    0x08
-#define REG_TEMP_DATA     0x09
-#define REG_ACC_CONF      0x20
-#define REG_GYR_CONF      0x21
-#define REG_CMD           0x7E
-
-uint16_t regBuilded = 0;
-
-#define BMI323_CHIP_ID  0x43
-#define BMI323_SOFT_RST 0xDEAF
-
-// ── ISR ───────────────────────────────────────────────────────
-void IRAM_ATTR isr_INT1() { int1Count++; }
-void IRAM_ATTR isr_INT2() { int2Flag = true; }
-
-// ── Objetos y structs ─────────────────────────────────────────
-DevLab_BMI323 imu(Wire, BMI323_ADDR);
-
-BMI323_SensorData data;
 BMI323_AccCfg   acc_Config;
 BMI323_GyrCfg   gyr_Config;
 BMI323_IntCtrl  int_Config;
-
 BMI323_INT1_SRC src1 = BMI323_SRC1_ANY_MOTION_OUT;
 BMI323_INT2_SRC src2 = BMI323_SRC2_ACC_DRDY_INT;
 BMI323_INT_DEST dst1 = BMI323_INT1;
 BMI323_INT_DEST dst2 = BMI323_INT2;
 
+DevLab_BMI323 imuSpi(spi_bus,CS_PIN,MISO_PIN,MOSI_PIN,SCK_PIN,SPI_FAST_SPEED);
 
-// ── Configuración del acelerómetro ────────────────────────────
+// ── ISR ───────────────────────────────────────────────────────
+void IRAM_ATTR isr_INT1() { int1Count++; }
+void IRAM_ATTR isr_INT2() { int2Flag = true; }
+
 void configSens() {
   acc_Config.acc_mode   = BMI323_ACC_MODE_CONTINUOUS;
   acc_Config.acc_odr    = BMI323_ACC_ODR_100HZ;   // 100 Hz
@@ -71,13 +49,10 @@ void configSens() {
 
   Serial.print(F("acc_odr valor: 0x"));
   Serial.println(acc_Config.acc_odr, HEX);
-  imu.configAccBMI323(acc_Config);
+  imuSpi.configAccBMI323(acc_Config);
   delay(160);
 }
 
-// ── Configuración de interrupciones ──────────────────────────
-// FIX: softReset() removido de aquí — se hace UNA sola vez en setup()
-//      antes de cualquier configuración, para no borrar configSens()
 void configInterrupt() {
   int_Config.int1_level = 1;   // 1 Active High | 0 Active Low
   int_Config.int1_od    = 0;   // 1 Open Drain  | 0 Push Pull
@@ -86,21 +61,20 @@ void configInterrupt() {
   int_Config.int2_od    = 0;
   int_Config.int2_en    = 1;
 
-  imu.configINT(int_Config);
-  imu.configIntLatch(0);
+  imuSpi.configINT(int_Config);
+  imuSpi.configIntLatch(0);
   delay(5);
 
 
-  imu.testAddresses(0x14);
+  imuSpi.testAddresses(0x14);
   
-  imu.setINTMap2(src2, dst1);
-  imu.setINTMap1(src1, dst2);
+  imuSpi.setINTMap2(src2, dst1);
+  imuSpi.setINTMap1(src1, dst2);
 
-  Serial.print(F("INT_MAP1: 0x")); Serial.println(imu.getINT1Map(), HEX);
-  Serial.print(F("INT_MAP2: 0x")); Serial.println(imu.getINT2Map(), HEX);
+  Serial.print(F("INT_MAP1: 0x")); Serial.println(imuSpi.getINT1Map(), HEX);
+  Serial.print(F("INT_MAP2: 0x")); Serial.println(imuSpi.getINT2Map(), HEX);
 }
 
-// ── Pines e ISR del MCU ───────────────────────────────────────
 void setupINTPins() {
   // Push-pull activo-alto → INPUT puro, el BMI323 conduce la línea
   pinMode(INT1_PIN, INPUT);
@@ -131,7 +105,7 @@ bool validateINT1_drdy() {
   Serial.print(F("  Pulsos contados : ")); Serial.println(n);
   Serial.println(F("  Esperado        : 160-240 (100Hz x 2s)"));
   Serial.print(F("  INT_STATUS1     : 0x"));
-  Serial.println(imu.readINTStatus1(), HEX);
+  Serial.println(imuSpi.readINTStatus1(), HEX);
   Serial.println(pass ? F("  [PASS]") : F("  [FAIL]"));
   return pass;
 }
@@ -153,41 +127,41 @@ bool validateINT2_anyMotion(uint32_t timeoutMs = 10000) {
   bool pass = int2Flag;
   Serial.println();
   Serial.print(F("  INT_STATUS2     : 0x"));
-  Serial.println(imu.readINTStatus2(), HEX);
+  Serial.println(imuSpi.readINTStatus2(), HEX);
   Serial.println(pass ? F("  [PASS]") : F("  [FAIL] timeout sin flanco"));
   return pass;
 }
 
-// ── Setup ─────────────────────────────────────────────────────
+
+
 void setup() {
+  // put your setup code here, to run once:
   Serial.begin(115200);
-  while (!Serial && millis() < 3000);
-  delay(500);
+  while(!Serial);
 
   Serial.println(F("\n============================================"));
   Serial.println(F("  BMI323 — UNIT ELECTRONICS"));
   Serial.println(F("  INT1=D5 (any_motion)  INT2=D7 (acc_drdy)"));
   Serial.println(F("============================================\n"));
 
-  if (!imu.begin(SDA_PIN, SCL_PIN, FAST_SPEED)) {
-    Serial.println(F("ERROR: BMI323 initialization failed."));
-    while (1) delay(1000);
+  if(!imuSpi.begin()){
+    Serial.println("Error : BMI323 initialization failed");
+
+    while(1){
+      delay(1000);
+    }
   }
-  delay(5);
+  Serial.println("BMI323 Initialized succesfully");
+  delay(10);
 
-  imu.test_chip_id(BMI323_CHIP_ID, REG_CHIP_ID);
+  imuSpi.test_chip_id(BMI323_CHIP_ID, REG_CHIP_ID);
 
-  // FIX: softReset UNA sola vez aquí, antes de cualquier configuración
-  imu.softReset();
-  delay(15);
+  bool featOk = imuSpi.enableFeatEngine();
+  Serial.print(F("Feature engine: "));
+  Serial.println(featOk ? F("LISTO") : F("TIMEOUT"));
 
-
-bool featOk = imu.enableFeatEngine();
-Serial.print(F("Feature engine: "));
-Serial.println(featOk ? F("LISTO") : F("TIMEOUT"));
-
-// Configurar any_motion en FEATURE_IO0
-imu.configAnyMotion();
+  // Configurar any_motion en FEATURE_IO0
+  imuSpi.configAnyMotion();
   // Orden correcto: sensor → interrupciones → pines MCU
   configSens();
   configInterrupt();
@@ -197,17 +171,16 @@ imu.configAnyMotion();
   validateINT2_anyMotion(10000);
 
   Serial.println(F("\nBMI323 initialized successfully."));
+
+
 }
 
 void loop() {
-  
 
-    uint16_t s1 = imu.readINTStatus1();
-    uint16_t s2 = imu.readINTStatus2();
-  
-  if (s1 || s2) {
-    Serial.print(F("STATUS1: 0x")); Serial.print(s1, HEX);
-    Serial.print(F("  STATUS2: 0x")); Serial.println(s2, HEX);
-  }
-
+    uint16_t s1 = imuSpi.readINTStatus1();
+    uint16_t s2 =imuSpi.readINTStatus2();
+    if (s1 || s2) {
+      Serial.print(F("STATUS1: 0x")); Serial.print(s1, HEX);
+      Serial.print(F("  STATUS2: 0x")); Serial.println(s2, HEX);
+    }
 }

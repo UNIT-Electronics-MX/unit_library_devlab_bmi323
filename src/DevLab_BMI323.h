@@ -12,7 +12,7 @@
   - Compatible with ESP32, RP2040, and Arduino platforms
 
   Author:
-  Adrian Rabadan Ortiz Jonathan Mejorado
+  Adrian Rabadan Ortiz | Jonathan Mejorado Lopez
 
   Organization:
   UNIT Electronics - DevLab Ecosystem
@@ -32,6 +32,140 @@
 #define BMI323_CHIP_ID 0x43
 #define REG_CHIP_ID 0x00
     
+  // ── Fuentes de interrupción ─────────────────────────────────────
+// Cada valor es una máscara de 1 bit en los registros INT1_MAP/INT2_MAP.
+// El bit position corresponde al layout del datasheet §6.1.17.
+// El usuario combina con OR si necesita múltiples fuentes en una llamada:
+//   imu.mapINT(BMI323_SRC_DRDY_ACC | BMI323_SRC_DRDY_GYR, BMI323_INT1);
+
+enum BMI323_INT1_SRC : uint8_t {
+  BMI323_SRC1_NO_MOTION_OUT     = 0,   
+  BMI323_SRC1_ANY_MOTION_OUT    = 2,   
+  BMI323_SRC1_FLAT_OUT          = 4,   
+  BMI323_SRC1_ORIENTATION_OUT   = 6,   
+  BMI323_SRC1_STEP_DETECTOR_OUT = 8,   
+  BMI323_SRC1_STEP_COUNTER_OUT  = 10,   
+  BMI323_SRC1_SIG_MOTION_OUT    = 12,   
+  BMI323_SRC1_TILT_OUT          = 14
+};
+
+enum BMI323_INT2_SRC : uint8_t {
+  BMI323_SRC2_TAP_OUT             = 0,   
+  BMI323_SRC2_I3C_OUT             = 2,   
+  BMI323_SRC2_ERR_STATUS          = 4,   
+  BMI323_SRC2_TEMP_DRDY_INT       = 6,   
+  BMI323_SRC2_GYR_DRDY_INT        = 8,   
+  BMI323_SRC2_ACC_DRDY_INT        = 10,  
+  BMI323_SRC2_FIFO_WATERMARK_INT  = 12,   
+  BMI323_SRC2_FIFO_FULL_INT       = 14 
+};
+// ── Destino del pin físico ──────────────────────────────────────
+enum BMI323_INT_DEST : uint8_t {
+  BMI323_NONE = 0x0,   // Interrupt Disabled
+  BMI323_INT1 = 0x1,   // solo pin INT1 (pin 4 del IC)
+  BMI323_INT2 = 0x2,   // solo pin INT2 (pin 9 del IC)
+  BMI323_IBI  = 0x3,   // I3C IBI
+};
+
+// En DevLab_BMI323.h — antes de la clase, junto a los enums de interrupción
+
+enum BMI323_ACC_ODR : uint8_t {
+  BMI323_ACC_ODR_0_78HZ  = 0x1,
+  BMI323_ACC_ODR_1_56HZ  = 0x2,
+  BMI323_ACC_ODR_3_12HZ  = 0x3,
+  BMI323_ACC_ODR_6_25HZ  = 0x4,
+  BMI323_ACC_ODR_12_5HZ  = 0x5,
+  BMI323_ACC_ODR_25HZ    = 0x6,
+  BMI323_ACC_ODR_50HZ    = 0x7,
+  BMI323_ACC_ODR_100HZ   = 0x8,
+  BMI323_ACC_ODR_200HZ   = 0x9,
+  BMI323_ACC_ODR_400HZ   = 0xA,
+  BMI323_ACC_ODR_800HZ   = 0xB,
+  BMI323_ACC_ODR_1600HZ  = 0xC,
+  BMI323_ACC_ODR_3200HZ  = 0xD,
+  BMI323_ACC_ODR_6400HZ  = 0xE,
+};
+
+enum BMI323_ACC_RANGE : uint8_t {
+  BMI323_ACC_RANGE_2G  = 0x0,
+  BMI323_ACC_RANGE_4G  = 0x1,
+  BMI323_ACC_RANGE_8G  = 0x2,
+  BMI323_ACC_RANGE_16G = 0x3,
+};
+
+enum BMI323_ACC_BW : uint8_t {
+  BMI323_ACC_BW_ODR_2 = 0x0,
+  BMI323_ACC_BW_ODR_4 = 0x1,
+};
+
+enum BMI323_ACC_AVGNUM : uint8_t {
+  BMI323_ACC_AVG_NONE = 0x0,
+  BMI323_ACC_AVG_2    = 0x1,
+  BMI323_ACC_AVG_4    = 0x2,
+  BMI323_ACC_AVG_8    = 0x3,
+  BMI323_ACC_AVG_16   = 0x4,
+  BMI323_ACC_AVG_32   = 0x5,
+  BMI323_ACC_AVG_64   = 0x6,
+};
+
+enum BMI323_ACC_MODE : uint8_t {
+  BMI323_ACC_MODE_DISABLED = 0x0,
+  BMI323_ACC_MODE_CYCLING  = 0x3,
+  BMI323_ACC_MODE_CONTINUOUS   = 0x4,
+  BMI323_ACC_MODE_HP       = 0x7,
+};
+
+enum BMI323_GYR_ODR : uint8_t {
+  BMI323_GYR_ODR_0_78HZ = 0x1,
+  BMI323_GYR_ODR_1_56HZ = 0x2,
+  BMI323_GYR_ODR_3_12HZ = 0x3,
+  BMI323_GYR_ODR_6_25HZ = 0x4,
+  BMI323_GYR_ODR_12_5HZ = 0x5,
+  BMI323_GYR_ODR_25HZ   = 0x6,
+  BMI323_GYR_ODR_50HZ   = 0x7,
+  BMI323_GYR_ODR_100HZ  = 0x8,
+  BMI323_GYR_ODR_200HZ  = 0x9,
+  BMI323_GYR_ODR_400HZ  = 0xA,
+  BMI323_GYR_ODR_800HZ  = 0xB,
+  BMI323_GYR_ODR_1600HZ = 0xC,
+  BMI323_GYR_ODR_3200HZ = 0xD,
+  BMI323_GYR_ODR_6400HZ = 0xE,
+};
+
+enum BMI323_GYR_RANGE : uint8_t {
+  BMI323_GYR_RANGE_125DPS  = 0x0,
+  BMI323_GYR_RANGE_250DPS  = 0x1,
+  BMI323_GYR_RANGE_500DPS  = 0x2,
+  BMI323_GYR_RANGE_1000DPS = 0x3,
+  BMI323_GYR_RANGE_2000DPS = 0x4,
+};
+
+enum BMI323_GYR_BW : uint8_t {
+  BMI323_GYR_BW_ODR_2 = 0x0,
+  BMI323_GYR_BW_ODR_4 = 0x1,
+};
+
+enum BMI323_GYR_AVGNUM : uint8_t {
+  BMI323_GYR_AVG_NONE = 0x0,
+  BMI323_GYR_AVG_2    = 0x1,
+  BMI323_GYR_AVG_4    = 0x2,
+  BMI323_GYR_AVG_8    = 0x3,
+  BMI323_GYR_AVG_16   = 0x4,
+  BMI323_GYR_AVG_32   = 0x5,
+  BMI323_GYR_AVG_64   = 0x6,
+};
+
+enum BMI323_GYR_MODE : uint8_t {
+  BMI323_GYR_MODE_DISABLED      = 0x0,
+  BMI323_GYR_MODE_DRIVE_ENABLED = 0x1,
+  BMI323_GYR_MODE_CYCLING       = 0x3,
+  BMI323_GYR_MODE_CONTINUOUS    = 0x4,
+  BMI323_GYR_MODE_HP            = 0x7,
+};
+
+
+
+
 class DevLab_BMI323 {
 
 public:
@@ -77,40 +211,7 @@ public:
     uint8_t int2_en;
   };
 
-  // ── Fuentes de interrupción ─────────────────────────────────────
-// Cada valor es una máscara de 1 bit en los registros INT1_MAP/INT2_MAP.
-// El bit position corresponde al layout del datasheet §6.1.17.
-// El usuario combina con OR si necesita múltiples fuentes en una llamada:
-//   imu.mapINT(BMI323_SRC_DRDY_ACC | BMI323_SRC_DRDY_GYR, BMI323_INT1);
 
-enum BMI323_INT1_SRC : uint8_t {
-  BMI323_SRC1_NO_MOTION_OUT     = 0,   
-  BMI323_SRC1_ANY_MOTION_OUT    = 2,   
-  BMI323_SRC1_FLAT_OUT          = 4,   
-  BMI323_SRC1_ORIENTATION_OUT   = 6,   
-  BMI323_SRC1_STEP_DETECTOR_OUT = 8,   
-  BMI323_SRC1_STEP_COUNTER_OUT  = 10,   
-  BMI323_SRC1_SIG_MOTION_OUT    = 12,   
-  BMI323_SRC1_TILT_OUT          = 14
-};
-
-enum BMI323_INT2_SRC : uint8_t {
-  BMI323_SRC2_TAP_OUT             = 0,   
-  BMI323_SRC2_I3C_OUT             = 2,   
-  BMI323_SRC2_ERR_STATUS          = 4,   
-  BMI323_SRC2_TEMP_DRDY_INT       = 6,   
-  BMI323_SRC2_GYR_DRDY_INT        = 8,   
-  BMI323_SRC2_ACC_DRDY_INT        = 10,  
-  BMI323_SRC2_FIFO_WATERMARK_INT  = 12,   
-  BMI323_SRC2_FIFO_FULL_INT       = 14 
-};
-// ── Destino del pin físico ──────────────────────────────────────
-enum BMI323_INT_DEST : uint8_t {
-  BMI323_NONE = 0x0,   // Interrupt Disabled
-  BMI323_INT1 = 0x1,   // solo pin INT1 (pin 4 del IC)
-  BMI323_INT2 = 0x2,   // solo pin INT2 (pin 9 del IC)
-  BMI323_IBI  = 0x3,   // I3C IBI
-};
   /*
     Constructor I2C
 
@@ -250,8 +351,8 @@ protected:
   
 private:
 
-  TwoWire *_wire;
-  uint8_t _address;
+  TwoWire *_wire = nullptr;
+  uint8_t _address = 0x69; // Dirección I2C por defecto del BMI323
 
   SPIClass *_spi = nullptr;
   uint8_t _csPin = 0;
@@ -279,5 +380,12 @@ private:
 
 
 };
+
+
+using BMI323_AccCfg          = DevLab_BMI323::acc_cfg;
+using BMI323_GyrCfg          = DevLab_BMI323::gyr_cfg;
+using BMI323_IntCtrl         = DevLab_BMI323::int_ctrl;
+using BMI323_SensorData      = DevLab_BMI323::SensorData;
+
 
 #endif

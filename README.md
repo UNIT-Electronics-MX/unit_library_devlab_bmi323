@@ -10,8 +10,6 @@ This library provides a lightweight and reliable object-oriented interface for:
 
 Compatible with ESP32, RP2040, and Arduino-compatible platforms.
 
-> Current library version supports **I2C communication only**.  
-> SPI communication is not implemented in this version.
 
 ---
 
@@ -33,7 +31,7 @@ Compatible with ESP32, RP2040, and Arduino-compatible platforms.
 | Interface | Support Status |
 |---|---|
 | I2C | Supported |
-| SPI | Not implemented |
+| SPI | Supported |
 
 ---
 
@@ -41,22 +39,21 @@ Compatible with ESP32, RP2040, and Arduino-compatible platforms.
 
 ## Manual Installation
 
-> The library is not yet available through the Arduino Library Manager.  
-> Please install it manually using the ZIP package.
 
-1. Download this repository as ZIP
-2. Open Arduino IDE
-3. Go to:
+1. Open Arduino IDE
+2. Go to:
 
 ```text
-Sketch -> Include Library -> Add .ZIP Library...
+Sketch -> Library Manager -> Search DevLab_BMI323...
 ```
 
-4. Select:
+3. Click on Install
 
 ```text
 DevLab_BMI323.zip
 ```
+
+4. Compile and upload the examples for the sensor
 
 ---
 
@@ -69,7 +66,7 @@ DevLab_BMI323.zip
 #define SCL_PIN 6
 
 DevLab_BMI323 imu(Wire, 0x69);
-DevLab_BMI323::SensorData data;
+BMI323_SensorData data;
 
 void setup() {
 
@@ -183,7 +180,7 @@ DevLab_BMI323/
 
 # Author
 
-Adrián Rabadán Ortiz
+Adrián Rabadán Ortiz | Jonathan Mejorado Lopez 
 
 UNIT Electronics - DevLab Ecosystem
 
