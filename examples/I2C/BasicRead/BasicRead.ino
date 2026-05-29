@@ -48,7 +48,7 @@
 DevLab_BMI323 imu(Wire, 0x69);
 
 // Structure to store sensor data
-DevLab_BMI323::SensorData data;
+BMI323_SensorData data;
 
 // --------------------------------------------------
 // Arduino setup
