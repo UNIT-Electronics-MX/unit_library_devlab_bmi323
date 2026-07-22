@@ -16,8 +16,8 @@
   Connections:
   BMI323 -> MCU
 
-  SDA   -> GPIO 1
-  SCL   -> GPIO 6
+  SDA   -> GPIO 6
+  SCL   -> GPIO 7
   VDD   -> 3.3V
   VDDIO -> 3.3V
   GND   -> GND
@@ -39,8 +39,8 @@
 // --------------------------------------------------
 // I2C pin configuration
 // --------------------------------------------------
-#define SDA_PIN 1
-#define SCL_PIN 6
+#define SDA_PIN 6
+#define SCL_PIN 7
 
 // --------------------------------------------------
 // Create BMI323 object

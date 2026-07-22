@@ -42,7 +42,7 @@ DevLab_BMI323 - SPI Basic Read Example
 #define MOSI_PIN D11
 #define MISO_PIN D12
 #define SCK_PIN  D13
-#define CS_PIN   D10  
+#define CS_PIN   D10 
 #define SPI_FAST_SPEED 4000000
 
 SPIClass spi_bus(SPI);                    //Inicializacion de bus SPI
